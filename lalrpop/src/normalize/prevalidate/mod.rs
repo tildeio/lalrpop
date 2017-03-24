@@ -51,7 +51,7 @@ impl<'grammar> Validator<'grammar> {
             match *item {
                 GrammarItem::Use(..) => { }
 
-                GrammarItem::MatchToken() => {
+                GrammarItem::MatchToken(_) => {
                     // FIXME: Do something?
                 }
 

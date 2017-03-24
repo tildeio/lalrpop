@@ -234,30 +234,37 @@ ExternToken: GrammarItem = {
 
 MatchToken: GrammarItem = {
     <MatchToken> "else" "{" MatchContents "}"   => <>,
-    "match" "{" MatchContents "}"               => GrammarItem::MatchToken(),
+    "match" "{" MatchContents "}"               => GrammarItem::MatchToken(MatchToken()),
 };
 
-MatchContents: Vec<String> = {
+MatchContents: MatchContents = {
     <items:Comma<MatchItem>> =>? {
         // MEGAHAX
-        if let Some(idx) = items.iter().position(|i| i == "_") {
+        let finder = (|i: &MatchItem|
+            match *i {
+                MatchItem::Unmapped(MatchSymbol::CatchAll()) |
+                    MatchItem::Mapped(MatchSymbol::CatchAll(), _) => true,
+                _ => false
+            }
+        );
+        if let Some(idx) = items.iter().position(finder) {
             if idx != items.len()-1 {
                 let e = tok::Error { location: 0, code: tok::ErrorCode::UnrecognizedToken };
                 return Err(ParseError::User { error: e })
             }
         }
-        Ok(items)
+        Ok(MatchContents())
     },
 };
 
-MatchItem: String = {
-    <MatchSymbol>,
-    <from:MatchSymbol> <p:"=>"> =>? Ok(from)
+MatchItem: MatchItem = {
+    <MatchSymbol> => MatchItem::Unmapped(<>),
+    <from:MatchSymbol> <p:"=>"> =>? Ok(MatchItem::Mapped(from, MatchMapping { map_item: String::from(p) }))
 };
 
-MatchSymbol: String = {
-    "_" => String::from("_"),
-    Terminal => String::from("Terminal")
+MatchSymbol: MatchSymbol = {
+    "_"      => MatchSymbol::CatchAll(),
+    Terminal => MatchSymbol::Terminal()
 };
 
 EnumToken: EnumToken =

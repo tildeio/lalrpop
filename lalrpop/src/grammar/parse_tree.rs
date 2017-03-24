@@ -44,11 +44,35 @@ impl Into<Box<Content>> for Span {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GrammarItem {
-    MatchToken(),
+    MatchToken(MatchToken),
     ExternToken(ExternToken),
     InternToken(InternToken),
     Nonterminal(NonterminalData),
     Use(String),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MatchToken();
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MatchContents();
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MatchItem {
+    Unmapped(MatchSymbol),
+    Mapped(MatchSymbol, MatchMapping)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MatchSymbol {
+    Terminal(),
+    CatchAll()
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MatchMapping {
+    // FIXME: This is not right
+    pub map_item: String
 }
 
 /// Intern tokens are not typed by the user: they are synthesized in

@@ -121,7 +121,7 @@ fn match_block() {
         let parsed = parse_grammar(block).expect(format!("Invalid grammar; grammar={}", block).as_str());
         let first_item = parsed.items.first().expect("has item");
         match *first_item {
-            GrammarItem::MatchToken() => (), // OK
+            GrammarItem::MatchToken(_) => (), // OK
             _ => panic!("expected MatchToken, but was {:?}", first_item)
         }
     }

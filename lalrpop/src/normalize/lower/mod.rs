@@ -54,7 +54,7 @@ impl<'s> LowerState<'s> {
                     uses.push(data);
                 }
 
-                pt::GrammarItem::MatchToken() => {
+                pt::GrammarItem::MatchToken(_) => {
                     // FIXME: Do something?
                 }
 
