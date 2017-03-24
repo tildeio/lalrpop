@@ -4,7 +4,6 @@ use grammar::pattern::*;
 use std::iter::once;
 use tok::{self, Tok};
 use util::strip;
-use lalrpop_util::ParseError;
 
 #[LALR]
 grammar<'input>(text: &'input str);
@@ -234,38 +233,26 @@ ExternToken: GrammarItem = {
 
 MatchToken: GrammarItem = {
     <MatchToken> "else" "{" MatchContents "}"   => <>,
-    "match" "{" MatchContents "}"               => GrammarItem::MatchToken(MatchToken()),
+    "match" "{" <c:MatchContents> "}"           => GrammarItem::MatchToken(MatchToken { contents: vec![c] }),
 };
 
-MatchContents: MatchContents = {
-    <items:Comma<MatchItem>> =>? {
-        // MEGAHAX
-        let finder = (|i: &MatchItem|
-            match *i {
-                MatchItem::Unmapped(MatchSymbol::CatchAll()) |
-                    MatchItem::Mapped(MatchSymbol::CatchAll(), _) => true,
-                _ => false
-            }
-        );
-        if let Some(idx) = items.iter().position(finder) {
-            if idx != items.len()-1 {
-                let e = tok::Error { location: 0, code: tok::ErrorCode::UnrecognizedToken };
-                return Err(ParseError::User { error: e })
-            }
-        }
-        Ok(MatchContents())
-    },
-};
+MatchContents: MatchContents =
+    <items:Comma<MatchItem>> => MatchContents { items: items };
 
 MatchItem: MatchItem = {
-    <MatchSymbol> => MatchItem::Unmapped(<>),
-    <from:MatchSymbol> <p:"=>"> =>? Ok(MatchItem::Mapped(from, MatchMapping { map_item: String::from(p) }))
+    <lo:@L> <s:MatchSymbol> <hi:@R> => MatchItem::Unmapped(s, Span(lo, hi)),
+    <lo:@L> <from:MatchSymbol> <start:@L> <p:"=>"> <hi:@R> =>? {
+        let to = try!(super::parse_match_mapping(p, start + 2));
+        Ok(MatchItem::Mapped(from, to, Span(lo, hi)))
+    }
 };
 
 MatchSymbol: MatchSymbol = {
-    "_"      => MatchSymbol::CatchAll(),
-    Terminal => MatchSymbol::Terminal()
+    "_"        => MatchSymbol::CatchAll(),
+    <Terminal> => MatchSymbol::Terminal(<>)
 };
+
+pub MatchMapping = Terminal;
 
 EnumToken: EnumToken =
     "enum" <lo:@L> <t:TypeRef> <hi:@R> "{"

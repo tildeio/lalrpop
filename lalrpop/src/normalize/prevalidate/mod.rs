@@ -51,8 +51,18 @@ impl<'grammar> Validator<'grammar> {
             match *item {
                 GrammarItem::Use(..) => { }
 
-                GrammarItem::MatchToken(_) => {
-                    // FIXME: Do something?
+                GrammarItem::MatchToken(ref data) => {
+                    for match_contents in &data.contents {
+                        // TODO: Move at least some of this into MatchContents
+                        let items = &match_contents.items;
+                        if let Some(idx) = items.iter().position(|i| i.is_catch_all()) {
+                            if idx != items.len()-1 {
+                                return_err!(
+                                    items.get(idx).unwrap().span(),
+                                    "Catch all must be final item");
+                            }
+                        }
+                    }
                 }
 
                 GrammarItem::ExternToken(ref data) => {

@@ -70,3 +70,11 @@ fn pub_inline_annotation() {
         r#"grammar; #[inline] pub Term = ();"#,
         r#"           ~~~~~~            "#);
 }
+
+#[test]
+fn invalid_match_block() {
+    check_err(
+        r#"Catch all must be final item"#,
+        r#"grammar; match { _, "abc" }"#,
+        r#"                 ~         "#);
+}

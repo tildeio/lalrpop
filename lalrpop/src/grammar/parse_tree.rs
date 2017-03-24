@@ -52,28 +52,45 @@ pub enum GrammarItem {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MatchToken();
+pub struct MatchToken {
+    pub contents: Vec<MatchContents>
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MatchContents();
+pub struct MatchContents {
+    pub items: Vec<MatchItem>
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MatchItem {
-    Unmapped(MatchSymbol),
-    Mapped(MatchSymbol, MatchMapping)
+    Unmapped(MatchSymbol, Span),
+    Mapped(MatchSymbol, MatchMapping, Span)
+}
+
+impl MatchItem {
+    pub fn is_catch_all(&self) -> bool {
+        match *self {
+            MatchItem::Unmapped(MatchSymbol::CatchAll(), ..) |
+                MatchItem::Mapped(MatchSymbol::CatchAll(), ..) => true,
+            _ => false
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        match *self {
+            MatchItem::Unmapped(_, span)  => span,
+            MatchItem::Mapped(_, _, span) => span
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MatchSymbol {
-    Terminal(),
+    Terminal(TerminalString),
     CatchAll()
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MatchMapping {
-    // FIXME: This is not right
-    pub map_item: String
-}
+pub type MatchMapping = TerminalString;
 
 /// Intern tokens are not typed by the user: they are synthesized in
 /// the absence of an "extern" declaration with information about the
