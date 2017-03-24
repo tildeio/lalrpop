@@ -4,6 +4,7 @@ use grammar::pattern::*;
 use std::iter::once;
 use tok::{self, Tok};
 use util::strip;
+use lalrpop_util::ParseError;
 
 #[LALR]
 grammar<'input>(text: &'input str);
@@ -232,7 +233,31 @@ ExternToken: GrammarItem = {
 };
 
 MatchToken: GrammarItem = {
-    "match" "{" "_" "}" => GrammarItem::MatchToken()
+    <MatchToken> "else" "{" MatchContents "}"   => <>,
+    "match" "{" MatchContents "}"               => GrammarItem::MatchToken(),
+};
+
+MatchContents: Vec<String> = {
+    <items:Comma<MatchItem>> =>? {
+        // MEGAHAX
+        if let Some(idx) = items.iter().position(|i| i == "_") {
+            if idx != items.len()-1 {
+                let e = tok::Error { location: 0, code: tok::ErrorCode::UnrecognizedToken };
+                return Err(ParseError::User { error: e })
+            }
+        }
+        Ok(items)
+    },
+};
+
+MatchItem: String = {
+    <MatchSymbol>,
+    <from:MatchSymbol> <p:"=>"> =>? Ok(from)
+};
+
+MatchSymbol: String = {
+    "_" => String::from("_"),
+    Terminal => String::from("Terminal")
 };
 
 EnumToken: EnumToken =
@@ -342,6 +367,7 @@ extern {
         "extern" => Tok::Extern,
         "grammar" => Tok::Grammar,
         "match" => Tok::Match,
+        "else" => Tok::Else,
         "if" => Tok::If,
         "mut" => Tok::Mut,
         "pub" => Tok::Pub,
