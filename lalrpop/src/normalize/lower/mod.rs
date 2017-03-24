@@ -54,6 +54,10 @@ impl<'s> LowerState<'s> {
                     uses.push(data);
                 }
 
+                pt::GrammarItem::MatchToken() => {
+                    // FIXME: Do something?
+                }
+
                 pt::GrammarItem::InternToken(data) => {
                     token_span = Some(grammar.span);
                     let span = grammar.span;

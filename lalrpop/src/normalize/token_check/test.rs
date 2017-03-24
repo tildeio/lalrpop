@@ -1,6 +1,7 @@
 use parser;
 use normalize::resolve::resolve;
 use lexer::dfa::interpret;
+use grammar::parse_tree::{Grammar,GrammarItem};
 use test_util;
 
 fn check_err(expected_err: &str,
@@ -12,12 +13,16 @@ fn check_err(expected_err: &str,
     test_util::check_norm_err(expected_err, span, err);
 }
 
+fn parse_grammar(grammar: &str) -> Grammar {
+    let parsed_grammar = parser::parse_grammar(&grammar).unwrap();
+    let parsed_grammar = resolve(parsed_grammar).unwrap();
+    super::validate(parsed_grammar).unwrap()
+}
+
 fn check_intern_token(grammar: &str,
                       expected_tokens: Vec<(&'static str, &'static str)>)
 {
-    let parsed_grammar = parser::parse_grammar(&grammar).unwrap();
-    let parsed_grammar = resolve(parsed_grammar).unwrap();
-    let parsed_grammar = super::validate(parsed_grammar).unwrap();
+    let parsed_grammar = parse_grammar(&grammar);
     let intern_token = parsed_grammar.intern_token().unwrap();
     for (input, expected_literal) in expected_tokens {
         let actual_literal =
@@ -98,4 +103,14 @@ fn regex_literals() {
             ("1", r##"Some((r#"[0-9]+"#, "1"))"##),
             ("9123456", r##"Some((r#"[0-9]+"#, "9123456"))"##),
                 ]);
+}
+
+#[test]
+fn match_block() {
+    let parsed_grammar = parse_grammar(r#"grammar; match { _ }"#);
+    let first_item = parsed_grammar.items.first().expect("has item");
+    match *first_item {
+        GrammarItem::MatchToken() => (), // OK
+        _ => panic!("expected MatchToken, but was {:?}", first_item)
+    }
 }

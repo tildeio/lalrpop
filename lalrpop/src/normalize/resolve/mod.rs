@@ -99,6 +99,7 @@ impl Validator {
         for item in &mut grammar.items {
             match *item {
                 GrammarItem::Use(..) => { }
+                GrammarItem::MatchToken(..) => {}
                 GrammarItem::InternToken(..) => {}
                 GrammarItem::ExternToken(..) => {}
                 GrammarItem::Nonterminal(ref mut data) => {

@@ -44,6 +44,7 @@ impl Into<Box<Content>> for Span {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GrammarItem {
+    MatchToken(),
     ExternToken(ExternToken),
     InternToken(InternToken),
     Nonterminal(NonterminalData),
@@ -357,15 +358,28 @@ impl GrammarItem {
         match *self {
             GrammarItem::Nonterminal(ref d) => Some(d),
             GrammarItem::Use(..) => None,
+            GrammarItem::MatchToken(..) => None,
             GrammarItem::ExternToken(..) => None,
             GrammarItem::InternToken(..) => None,
         }
     }
 
+    // FIXME: Enable this
+    // pub fn as_match_token(&self) -> Option<&ExternToken> {
+    //     match *self {
+    //         GrammarItem::Nonterminal(..) => None,
+    //         GrammarItem::Use(..) => None,
+    //         GrammarItem::MatchToken(..) => None,
+    //         GrammarItem::ExternToken(ref d) => Some(d),
+    //         GrammarItem::InternToken(..) => None,
+    //     }
+    // }
+
     pub fn as_extern_token(&self) -> Option<&ExternToken> {
         match *self {
             GrammarItem::Nonterminal(..) => None,
             GrammarItem::Use(..) => None,
+            GrammarItem::MatchToken(..) => None,
             GrammarItem::ExternToken(ref d) => Some(d),
             GrammarItem::InternToken(..) => None,
         }
@@ -375,6 +389,7 @@ impl GrammarItem {
         match *self {
             GrammarItem::Nonterminal(..) => None,
             GrammarItem::Use(..) => None,
+            GrammarItem::MatchToken(..) => None,
             GrammarItem::ExternToken(..) => None,
             GrammarItem::InternToken(ref d) => Some(d),
         }

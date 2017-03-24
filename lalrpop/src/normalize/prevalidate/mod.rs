@@ -50,6 +50,11 @@ impl<'grammar> Validator<'grammar> {
         for item in &self.grammar.items {
             match *item {
                 GrammarItem::Use(..) => { }
+
+                GrammarItem::MatchToken() => {
+                    // FIXME: Do something?
+                }
+
                 GrammarItem::ExternToken(ref data) => {
                     if data.span != self.extern_token.unwrap().span {
                         return_err!(
