@@ -15,10 +15,11 @@ fn check_err(expected_err: &str,
 fn check_intern_token(grammar: &str,
                       expected_tokens: Vec<(&'static str, &'static str)>)
 {
-    let parsed_grammar = parser::parse_grammar(&grammar).unwrap();
-    let parsed_grammar = resolve(parsed_grammar).unwrap();
-    let parsed_grammar = super::validate(parsed_grammar).unwrap();
-    let intern_token = parsed_grammar.intern_token().unwrap();
+    let parsed_grammar = parser::parse_grammar(&grammar).expect("parse_grammar");
+    let parsed_grammar = resolve(parsed_grammar).expect("resolve");
+    let parsed_grammar = super::validate(parsed_grammar).expect("validate");
+    let intern_token = parsed_grammar.intern_token().expect("intern_token");
+    println!("intern_token: {:?}", intern_token);
     for (input, expected_literal) in expected_tokens {
         let actual_literal =
             interpret::interpret(&intern_token.dfa, input)
@@ -99,3 +100,28 @@ fn regex_literals() {
             ("9123456", r##"Some((r#"[0-9]+"#, "9123456"))"##),
                 ]);
 }
+
+#[test]
+fn match_mappings() {
+    check_intern_token(
+        r#"grammar; match { r"(?i)begin" => "BEGIN" } else { "abc" => ALPHA } X = "BEGIN" ALPHA;"#,
+        vec![
+            ("BEGIN", r#"Some(("BEGIN", "BEGIN"))"#),
+                ]);
+}
+
+// #[test]
+// fn match_mappings() {
+//     let parsed_grammar = parser::parse_grammar(r##"
+//         grammar;
+//         match {
+//             "abc"        => "ABC",
+//             r"(?i)begin" => BEGIN
+//         }
+
+//         pub Query: String = {
+//             "ABC" BEGIN => String::from("Success")
+//         }
+// "##).unwrap();
+//     super::resolve(parsed_grammar).unwrap();
+// }

@@ -20,26 +20,54 @@ use collections::{map, Map};
 mod test;
 
 pub fn validate(mut grammar: Grammar) -> NormResult<Grammar> {
-    let (has_enum_token, all_literals) = {
+    let (has_match_token, has_enum_token, all_literals) = {
+        let opt_match_token = grammar.match_token();
+        println!("opt_match_token: {:?}", opt_match_token);
+        // FIXME: Add priorities here
+        let mappings = opt_match_token.map(|mt| {
+            mt.contents.iter()
+                       .flat_map(|mc| &mc.items)
+                       .filter_map(|i| match *i {
+                           MatchItem::Mapped(_, mapping, _) => Some(mapping),
+                           _ => None
+                       })
+                       .collect::<Set<TerminalString>>()
+        });
+        println!("mappings: {:?}", mappings);
+
         let opt_enum_token = grammar.enum_token();
         let conversions = opt_enum_token.map(|et| {
             et.conversions.iter()
                           .map(|conversion| conversion.from)
-                          .collect()
+                          .collect::<Set<TerminalString>>()
         });
+
+        // FIXME: This is ugly
+        let conv = if mappings.is_some() && conversions.is_some() {
+            let mut m = mappings.unwrap();
+            m.append(&mut conversions.unwrap());
+            Some(m)
+        } else if mappings.is_some() {
+            mappings
+        } else {
+            conversions
+        };
+
+        println!("conv: {:?}", conv);
 
         let mut validator = Validator {
             grammar: &grammar,
             all_literals: map(),
-            conversions: conversions,
+            conversions: conv,
         };
 
         try!(validator.validate());
 
-        (opt_enum_token.is_some(), validator.all_literals)
+        (opt_match_token.is_some(), opt_enum_token.is_some(), validator.all_literals)
     };
 
-    if !has_enum_token {
+    // FIXME: Verify has_match_token check here
+    if !has_match_token && !has_enum_token {
         try!(construct(&mut grammar, all_literals));
     }
 
@@ -77,12 +105,14 @@ impl<'grammar> Validator<'grammar> {
     }
 
     fn validate_alternative(&mut self, alternative: &Alternative) -> NormResult<()> {
+        println!("validate_alternative: {:?}", alternative);
         assert!(alternative.condition.is_none()); // macro expansion should have removed these
         try!(self.validate_expr(&alternative.expr));
         Ok(())
     }
 
     fn validate_expr(&mut self, expr: &ExprSymbol) -> NormResult<()> {
+        println!("validate_expr: {:?}", expr);
         for symbol in &expr.symbols {
             try!(self.validate_symbol(symbol));
         }
@@ -90,6 +120,7 @@ impl<'grammar> Validator<'grammar> {
     }
 
     fn validate_symbol(&mut self, symbol: &Symbol) -> NormResult<()> {
+        println!("validate_symbol: {:?}", symbol);
         match symbol.kind {
             SymbolKind::Expr(ref expr) => {
                 try!(self.validate_expr(expr));
@@ -119,8 +150,9 @@ impl<'grammar> Validator<'grammar> {
     }
 
     fn validate_terminal(&mut self, span: Span, term: TerminalString) -> NormResult<()> {
+        println!("validate_terminal: {:?}", term);
         match self.conversions {
-            // If there is an extern token definition, validate that
+            // If there is an extern or match token definition, validate that
             // this terminal has a defined conversion.
             Some(ref c) => {
                 if !c.contains(&term) {
@@ -129,7 +161,7 @@ impl<'grammar> Validator<'grammar> {
                 }
             }
 
-            // If there is no extern token definition, then collect
+            // If there is no extern or match token definition, then collect
             // the terminal literals ("class", r"[a-z]+") into a set.
             None => match term {
                 TerminalString::Bare(c) => {

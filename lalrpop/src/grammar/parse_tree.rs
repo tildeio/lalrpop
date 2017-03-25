@@ -398,6 +398,12 @@ impl Grammar {
                   .flat_map(|i| i.as_intern_token())
                   .next()
     }
+
+    pub fn match_token(&self) -> Option<&MatchToken> {
+        self.items.iter()
+                  .flat_map(|i| i.as_match_token())
+                  .next()
+    }
 }
 
 impl GrammarItem {
@@ -418,16 +424,15 @@ impl GrammarItem {
         }
     }
 
-    // FIXME: Enable this
-    // pub fn as_match_token(&self) -> Option<&ExternToken> {
-    //     match *self {
-    //         GrammarItem::Nonterminal(..) => None,
-    //         GrammarItem::Use(..) => None,
-    //         GrammarItem::MatchToken(..) => None,
-    //         GrammarItem::ExternToken(ref d) => Some(d),
-    //         GrammarItem::InternToken(..) => None,
-    //     }
-    // }
+    pub fn as_match_token(&self) -> Option<&MatchToken> {
+        match *self {
+            GrammarItem::Nonterminal(..) => None,
+            GrammarItem::Use(..) => None,
+            GrammarItem::MatchToken(ref d) => Some(d),
+            GrammarItem::ExternToken(..) => None,
+            GrammarItem::InternToken(..) => None,
+        }
+    }
 
     pub fn as_extern_token(&self) -> Option<&ExternToken> {
         match *self {
