@@ -52,16 +52,21 @@ impl<'grammar> Validator<'grammar> {
                 GrammarItem::Use(..) => { }
 
                 GrammarItem::MatchToken(ref data) => {
+                    // Ensure that the catch all is final item of final block
+                    let mut contents_idx = 0;
                     for match_contents in &data.contents {
-                        // TODO: Move at least some of this into MatchContents
-                        let items = &match_contents.items;
-                        if let Some(idx) = items.iter().position(|i| i.is_catch_all()) {
-                            if idx != items.len()-1 {
+                        let mut item_idx = 0;
+                        for item in &match_contents.items {
+                            if item.is_catch_all() && (contents_idx != &data.contents.len()-1 || item_idx != &match_contents.items.len()-1) {
                                 return_err!(
-                                    items.get(idx).unwrap().span(),
+                                    item.span(),
                                     "Catch all must be final item");
+                            } else {
+                                println!("ok");
                             }
+                            item_idx += 1;
                         }
+                        contents_idx += 1;
                     }
                 }
 

@@ -56,6 +56,23 @@ pub struct MatchToken {
     pub contents: Vec<MatchContents>
 }
 
+impl MatchToken {
+    pub fn new(contents: MatchContents) -> MatchToken {
+        MatchToken {
+            contents: vec![contents]
+        }
+    }
+
+    // Not really sure if this is the best way to do it
+    pub fn add(self, contents: MatchContents) -> MatchToken {
+        let mut new_contents = self.contents.clone();
+        new_contents.push(contents);
+        MatchToken {
+            contents: new_contents
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MatchContents {
     pub items: Vec<MatchItem>

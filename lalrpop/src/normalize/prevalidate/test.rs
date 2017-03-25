@@ -72,9 +72,17 @@ fn pub_inline_annotation() {
 }
 
 #[test]
-fn invalid_match_block() {
+fn match_catch_all_first_of_last() {
     check_err(
         r#"Catch all must be final item"#,
         r#"grammar; match { _, "abc" }"#,
         r#"                 ~         "#);
+}
+
+#[test]
+fn match_catch_all_last_of_first() {
+    check_err(
+        r#"Catch all must be final item"#,
+        r#"grammar; match { "abc", _ } else { "foo" }"#,
+        r#"                        ~                 "#);
 }

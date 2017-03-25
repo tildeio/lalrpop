@@ -231,9 +231,12 @@ ExternToken: GrammarItem = {
     },
 };
 
-MatchToken: GrammarItem = {
-    <MatchToken> "else" "{" MatchContents "}"   => <>,
-    "match" "{" <c:MatchContents> "}"           => GrammarItem::MatchToken(MatchToken { contents: vec![c] }),
+MatchToken: GrammarItem =
+    <t:MatchTokenInt> => GrammarItem::MatchToken(t);
+
+MatchTokenInt: MatchToken = {
+    <t:MatchTokenInt> "else" "{" <c:MatchContents> "}" => t.add(c),
+    "match" "{" <c:MatchContents> "}"                  => MatchToken::new(c),
 };
 
 MatchContents: MatchContents =

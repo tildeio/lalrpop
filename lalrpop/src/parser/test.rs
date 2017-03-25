@@ -23,3 +23,19 @@ fn match_block() {
         }
     }
 }
+
+#[test]
+fn match_complex() {
+    let parsed = parser::parse_grammar(r#"
+        grammar;
+        match {
+            r"(?i)begin" => "BEGIN",
+            r"(?i)end" => "END",
+        } else {
+            r"[a-zA-Z_][a-zA-Z0-9_]*" => IDENTIFIER,
+        } else {
+            "other",
+            _
+        }
+"#).unwrap();
+}
