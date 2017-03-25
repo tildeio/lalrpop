@@ -80,6 +80,7 @@ pub struct MatchContents {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MatchItem {
+    CatchAll(Span),
     Unmapped(MatchSymbol, Span),
     Mapped(MatchSymbol, MatchMapping, Span)
 }
@@ -87,26 +88,21 @@ pub enum MatchItem {
 impl MatchItem {
     pub fn is_catch_all(&self) -> bool {
         match *self {
-            MatchItem::Unmapped(MatchSymbol::CatchAll(), ..) |
-                MatchItem::Mapped(MatchSymbol::CatchAll(), ..) => true,
+            MatchItem::CatchAll(_) => true,
             _ => false
         }
     }
 
     pub fn span(&self) -> Span {
         match *self {
+            MatchItem::CatchAll(span)     => span,
             MatchItem::Unmapped(_, span)  => span,
             MatchItem::Mapped(_, _, span) => span
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum MatchSymbol {
-    Terminal(TerminalString),
-    CatchAll()
-}
-
+pub type MatchSymbol = TerminalString;
 pub type MatchMapping = TerminalString;
 
 /// Intern tokens are not typed by the user: they are synthesized in

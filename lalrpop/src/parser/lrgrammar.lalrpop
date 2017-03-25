@@ -243,6 +243,7 @@ MatchContents: MatchContents =
     <items:Comma<MatchItem>> => MatchContents { items: items };
 
 MatchItem: MatchItem = {
+    <lo:@L> "_" <hi:@R>             => MatchItem::CatchAll(Span(lo, hi)),
     <lo:@L> <s:MatchSymbol> <hi:@R> => MatchItem::Unmapped(s, Span(lo, hi)),
     <lo:@L> <from:MatchSymbol> <start:@L> <p:"=>"> <hi:@R> =>? {
         let to = try!(super::parse_match_mapping(p, start + 2));
@@ -250,10 +251,7 @@ MatchItem: MatchItem = {
     }
 };
 
-MatchSymbol: MatchSymbol = {
-    "_"        => MatchSymbol::CatchAll(),
-    <Terminal> => MatchSymbol::Terminal(<>)
-};
+MatchSymbol = QuotedTerminal;
 
 pub MatchMapping = Terminal;
 
