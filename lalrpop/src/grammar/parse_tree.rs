@@ -78,6 +78,8 @@ pub struct MatchContents {
     pub items: Vec<MatchItem>
 }
 
+// FIXME: Validate that MatchSymbol is actually a TerminalString::Literal
+//          and that MatchMapping is an Id or String
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MatchItem {
     CatchAll(Span),
@@ -306,6 +308,15 @@ pub enum TerminalString {
     Literal(TerminalLiteral),
     Bare(InternedString),
     Error,
+}
+
+impl TerminalString {
+    pub fn as_literal(&self) -> Option<&TerminalLiteral> {
+        match *self {
+            TerminalString::Literal(ref l) => Some(l),
+            _ => None
+        }
+    }
 }
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]

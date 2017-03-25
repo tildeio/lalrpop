@@ -106,8 +106,26 @@ fn match_mappings() {
     check_intern_token(
         r#"grammar; match { r"(?i)begin" => "BEGIN" } else { "abc" => ALPHA } X = "BEGIN" ALPHA;"#,
         vec![
-            ("BEGIN", r#"Some(("BEGIN", "BEGIN"))"#),
+            ("BEGIN", r##"Some((r#"(?i)begin"#, "BEGIN"))"##),
+            ("begin", r##"Some((r#"(?i)begin"#, "begin"))"##),
+            ("abc", r#"Some(("abc", "abc"))"#), // ALPHA
                 ]);
+}
+
+#[test]
+fn invalid_match_literal() {
+    check_err(
+        r#"terminal `"foo"` does not have a match mapping defined for it"#,
+        r#"grammar; match { r"(?i)begin" => "BEGIN" } X = "foo";"#,
+        r#"                                               ~~~~~ "#);
+}
+
+#[test]
+fn match_catch_all() {
+    let grammar = r#"grammar; match { r"(?i)begin" => "BEGIN", _ } X = "foo";"#;
+    let parsed_grammar = parser::parse_grammar(&grammar).unwrap();
+    let parsed_grammar = resolve(parsed_grammar).unwrap();
+    assert!(super::validate(parsed_grammar).is_ok())
 }
 
 // #[test]

@@ -20,20 +20,30 @@ use collections::{map, Map};
 mod test;
 
 pub fn validate(mut grammar: Grammar) -> NormResult<Grammar> {
-    let (has_match_token, has_enum_token, all_literals) = {
+    let (has_enum_token, all_literals) = {
         let opt_match_token = grammar.match_token();
-        println!("opt_match_token: {:?}", opt_match_token);
-        // FIXME: Add priorities here
-        let mappings = opt_match_token.map(|mt| {
-            mt.contents.iter()
-                       .flat_map(|mc| &mc.items)
-                       .filter_map(|i| match *i {
-                           MatchItem::Mapped(_, mapping, _) => Some(mapping),
-                           _ => None
-                       })
-                       .collect::<Set<TerminalString>>()
-        });
-        println!("mappings: {:?}", mappings);
+
+        let (match_mappings, match_catch_all) = if let Some(mt) = opt_match_token {
+            let mut ret = map();
+            let mut catch_all = false;
+
+            // FIXME: This should probably move _inside_ the Validator
+            // FIXME: Add precedences here
+            for mc in &mt.contents {
+                for item in &mc.items {
+                    // TODO: Mabye move this into MatchItem methods
+                    match *item {
+                        MatchItem::Unmapped(sym, _)        => { ret.insert(sym, sym); },
+                        MatchItem::Mapped(sym, mapping, _) => { ret.insert(mapping, sym); },
+                        MatchItem::CatchAll(_)             => { catch_all = true; }
+                    };
+                }
+            }
+
+            (Some(ret), Some(catch_all))
+        } else {
+            (None, None)
+        };
 
         let opt_enum_token = grammar.enum_token();
         let conversions = opt_enum_token.map(|et| {
@@ -42,32 +52,25 @@ pub fn validate(mut grammar: Grammar) -> NormResult<Grammar> {
                           .collect::<Set<TerminalString>>()
         });
 
-        // FIXME: This is ugly
-        let conv = if mappings.is_some() && conversions.is_some() {
-            let mut m = mappings.unwrap();
-            m.append(&mut conversions.unwrap());
-            Some(m)
-        } else if mappings.is_some() {
-            mappings
-        } else {
-            conversions
-        };
-
-        println!("conv: {:?}", conv);
-
         let mut validator = Validator {
             grammar: &grammar,
             all_literals: map(),
-            conversions: conv,
+            conversions: conversions,
+            match_mappings: match_mappings,
+            match_catch_all: match_catch_all
         };
+
+        // FIXME: Handle this better if possible
+        if opt_match_token.is_some() && opt_enum_token.is_some() {
+            panic!("Can't have both a math and an extern!");
+        }
 
         try!(validator.validate());
 
-        (opt_match_token.is_some(), opt_enum_token.is_some(), validator.all_literals)
+        (opt_enum_token.is_some(), validator.all_literals)
     };
 
-    // FIXME: Verify has_match_token check here
-    if !has_match_token && !has_enum_token {
+    if !has_enum_token {
         try!(construct(&mut grammar, all_literals));
     }
 
@@ -84,6 +87,8 @@ struct Validator<'grammar> {
     grammar: &'grammar Grammar,
     all_literals: Map<TerminalLiteral, Span>,
     conversions: Option<Set<TerminalString>>,
+    match_mappings: Option<Map<TerminalString, TerminalString>>,
+    match_catch_all: Option<bool>,
 }
 
 impl<'grammar> Validator<'grammar> {
@@ -105,14 +110,12 @@ impl<'grammar> Validator<'grammar> {
     }
 
     fn validate_alternative(&mut self, alternative: &Alternative) -> NormResult<()> {
-        println!("validate_alternative: {:?}", alternative);
         assert!(alternative.condition.is_none()); // macro expansion should have removed these
         try!(self.validate_expr(&alternative.expr));
         Ok(())
     }
 
     fn validate_expr(&mut self, expr: &ExprSymbol) -> NormResult<()> {
-        println!("validate_expr: {:?}", expr);
         for symbol in &expr.symbols {
             try!(self.validate_symbol(symbol));
         }
@@ -120,7 +123,6 @@ impl<'grammar> Validator<'grammar> {
     }
 
     fn validate_symbol(&mut self, symbol: &Symbol) -> NormResult<()> {
-        println!("validate_symbol: {:?}", symbol);
         match symbol.kind {
             SymbolKind::Expr(ref expr) => {
                 try!(self.validate_expr(expr));
@@ -150,9 +152,8 @@ impl<'grammar> Validator<'grammar> {
     }
 
     fn validate_terminal(&mut self, span: Span, term: TerminalString) -> NormResult<()> {
-        println!("validate_terminal: {:?}", term);
         match self.conversions {
-            // If there is an extern or match token definition, validate that
+            // If there is an extern token definition, validate that
             // this terminal has a defined conversion.
             Some(ref c) => {
                 if !c.contains(&term) {
@@ -161,20 +162,52 @@ impl<'grammar> Validator<'grammar> {
                 }
             }
 
-            // If there is no extern or match token definition, then collect
+            // If there is no extern token definition, then collect
             // the terminal literals ("class", r"[a-z]+") into a set.
             None => match term {
-                TerminalString::Bare(c) => {
-                    // Bare identifiers like `x` can never be resolved
-                    // as terminals unless there is a conversion
-                    // defined for them that indicates they are a
-                    // terminal; otherwise it's just an unresolved
-                    // identifier.
-                    panic!("bare literal `{}` without extern token definition", c);
-                }
-                TerminalString::Literal(l) => {
-                    self.all_literals.entry(l).or_insert(span);
-                }
+                // FIMXE: Should not allow undefined literals if no CatchAll
+                TerminalString::Bare(c) => match self.match_mappings {
+                    Some(ref m) => {
+                        if let Some(v) = m.get(&term) {
+                            // FIXME: I don't think this span here is correct
+                            let vl = v.as_literal().expect("must map to a literal");
+                            self.all_literals.entry(*vl).or_insert(span);
+                        } else {
+                            return_err!(span, "terminal `{}` does not have a match mapping defined for it",
+                                        term);
+                        }
+                    }
+
+                    None => {
+                        // Bare identifiers like `x` can never be resolved
+                        // as terminals unless there is a conversion or mapping
+                        // defined for them that indicates they are a
+                        // terminal; otherwise it's just an unresolved
+                        // identifier.
+                        panic!("bare literal `{}` without extern token definition", c);
+                    }
+                },
+
+                TerminalString::Literal(l) => match self.match_mappings {
+                    Some(ref m) => {
+                        if let Some(v) = m.get(&term) {
+                            // FIXME: I don't think this span here is correct
+                            let vl = v.as_literal().expect("must map to a literal");
+                            self.all_literals.entry(*vl).or_insert(span);
+                        } else {
+                            // Unwrap should be safe as we shouldn't have match_catch_all without match_mappings
+                            if self.match_catch_all.unwrap() {
+                                // FIXME: I don't think this span here is correct
+                                self.all_literals.entry(l).or_insert(span);
+                            } else {
+                                return_err!(span, "terminal `{}` does not have a match mapping defined for it",
+                                            term);
+                            }
+
+                        }
+                    }
+                    None => { self.all_literals.entry(l).or_insert(span); }
+                },
 
                 // Error is a builtin terminal that always exists
                 TerminalString::Error => (),
