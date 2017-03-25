@@ -1,23 +1,27 @@
 use parser;
 use normalize::resolve::resolve;
+use normalize::NormResult;
 use lexer::dfa::interpret;
+use grammar::parse_tree::Grammar;
 use test_util;
+
+fn validate_grammar(grammar: &str) -> NormResult<Grammar> {
+    let parsed_grammar = parser::parse_grammar(&grammar).expect("parse grammar");
+    let parsed_grammar = resolve(parsed_grammar).expect("resolve");
+    super::validate(parsed_grammar)
+}
 
 fn check_err(expected_err: &str,
              grammar: &str,
              span: &str) {
-    let parsed_grammar = parser::parse_grammar(&grammar).unwrap();
-    let parsed_grammar = resolve(parsed_grammar).unwrap();
-    let err = super::validate(parsed_grammar).unwrap_err();
+    let err = validate_grammar(&grammar).unwrap_err();
     test_util::check_norm_err(expected_err, span, err);
 }
 
 fn check_intern_token(grammar: &str,
                       expected_tokens: Vec<(&'static str, &'static str)>)
 {
-    let parsed_grammar = parser::parse_grammar(&grammar).expect("parse_grammar");
-    let parsed_grammar = resolve(parsed_grammar).expect("resolve");
-    let parsed_grammar = super::validate(parsed_grammar).expect("validate");
+    let parsed_grammar = validate_grammar(&grammar).expect("validate");
     let intern_token = parsed_grammar.intern_token().expect("intern_token");
     println!("intern_token: {:?}", intern_token);
     for (input, expected_literal) in expected_tokens {
@@ -123,23 +127,21 @@ fn invalid_match_literal() {
 #[test]
 fn match_catch_all() {
     let grammar = r#"grammar; match { r"(?i)begin" => "BEGIN", _ } X = "foo";"#;
-    let parsed_grammar = parser::parse_grammar(&grammar).unwrap();
-    let parsed_grammar = resolve(parsed_grammar).unwrap();
-    assert!(super::validate(parsed_grammar).is_ok())
+    assert!(validate_grammar(&grammar).is_ok())
 }
 
-// #[test]
-// fn match_mappings() {
-//     let parsed_grammar = parser::parse_grammar(r##"
-//         grammar;
-//         match {
-//             "abc"        => "ABC",
-//             r"(?i)begin" => BEGIN
-//         }
+#[test]
+fn complex_match() {
+    let grammar = r##"
+        grammar;
+        match {
+            "abc"        => "ABC",
+            r"(?i)begin" => BEGIN
+        }
 
-//         pub Query: String = {
-//             "ABC" BEGIN => String::from("Success")
-//         }
-// "##).unwrap();
-//     super::resolve(parsed_grammar).unwrap();
-// }
+        pub Query: String = {
+            "ABC" BEGIN => String::from("Success")
+        };
+"##;
+    assert!(validate_grammar(&grammar).is_ok())
+}
