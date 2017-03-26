@@ -49,7 +49,7 @@ pub fn validate(mut grammar: Grammar) -> NormResult<Grammar> {
         let conversions = opt_enum_token.map(|et| {
             et.conversions.iter()
                           .map(|conversion| conversion.from)
-                          .collect::<Set<TerminalString>>()
+                          .collect()
         });
 
         let mut validator = Validator {
@@ -171,7 +171,7 @@ impl<'grammar> Validator<'grammar> {
                         if let Some(v) = m.get(&term) {
                             // FIXME: I don't think this span here is correct
                             let vl = v.as_literal().expect("must map to a literal");
-                            self.all_literals.entry(*vl).or_insert(span);
+                            self.all_literals.entry(vl).or_insert(span);
                         } else {
                             return_err!(span, "terminal `{}` does not have a match mapping defined for it",
                                         term);
@@ -193,7 +193,7 @@ impl<'grammar> Validator<'grammar> {
                         if let Some(v) = m.get(&term) {
                             // FIXME: I don't think this span here is correct
                             let vl = v.as_literal().expect("must map to a literal");
-                            self.all_literals.entry(*vl).or_insert(span);
+                            self.all_literals.entry(vl).or_insert(span);
                         } else {
                             // Unwrap should be safe as we shouldn't have match_catch_all without match_mappings
                             if self.match_catch_all.unwrap() {

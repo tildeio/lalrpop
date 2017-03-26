@@ -34,6 +34,14 @@ fn resolve_in_place(grammar: &mut Grammar) -> NormResult<()> {
                        TerminalString::Bare(id) => Some((conversion.span, id, Def::Terminal)),
                    });
 
+        // Extract all the bare identifiers that appear in the RHS of a `match` declaration.
+        // Example:
+        //     match {
+        //         r"(?)begin" => "BEGIN",
+        //     } else {
+        //         r"[a-zA-Z_][a-zA-Z0-9_]*" => ID,
+        //     }
+        // This would result in `vec![ID]`.
         let match_identifiers =
             grammar.items
                    .iter()

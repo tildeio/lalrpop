@@ -311,9 +311,9 @@ pub enum TerminalString {
 }
 
 impl TerminalString {
-    pub fn as_literal(&self) -> Option<&TerminalLiteral> {
+    pub fn as_literal(&self) -> Option<TerminalLiteral> {
         match *self {
-            TerminalString::Literal(ref l) => Some(l),
+            TerminalString::Literal(l) => Some(l),
             _ => None
         }
     }

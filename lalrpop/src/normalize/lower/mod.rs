@@ -55,7 +55,9 @@ impl<'s> LowerState<'s> {
                 }
 
                 pt::GrammarItem::MatchToken(_) => {
-                    // FIXME: Do something?
+                    // The declarations in the match token are handled
+                    // fully by the `token_check` when it constructs the
+                    //  `InternToken` -- there is nothing left to do here.
                 }
 
                 pt::GrammarItem::InternToken(data) => {

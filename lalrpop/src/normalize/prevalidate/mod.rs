@@ -53,10 +53,8 @@ impl<'grammar> Validator<'grammar> {
 
                 GrammarItem::MatchToken(ref data) => {
                     // Ensure that the catch all is final item of final block
-                    let mut contents_idx = 0;
-                    for match_contents in &data.contents {
-                        let mut item_idx = 0;
-                        for item in &match_contents.items {
+                    for (contents_idx, match_contents) in data.contents.iter().enumerate() {
+                        for (item_idx, item) in match_contents.items.iter().enumerate() {
                             if item.is_catch_all() && (contents_idx != &data.contents.len()-1 || item_idx != &match_contents.items.len()-1) {
                                 return_err!(
                                     item.span(),
@@ -64,9 +62,7 @@ impl<'grammar> Validator<'grammar> {
                             } else {
                                 println!("ok");
                             }
-                            item_idx += 1;
                         }
-                        contents_idx += 1;
                     }
                 }
 
