@@ -236,7 +236,7 @@ MatchToken: GrammarItem =
 
 MatchTokenInt: MatchToken = {
     <t:MatchTokenInt> "else" "{" <c:MatchContents> "}" => t.add(c),
-    <lo:@L>"match" <hi:@R>"{" <c:MatchContents> "}"    => MatchToken::new(c, Span(lo, hi)),
+    <lo:@L> "match" <hi:@R> "{" <c:MatchContents> "}"  => MatchToken::new(c, Span(lo, hi)),
 };
 
 MatchContents: MatchContents =

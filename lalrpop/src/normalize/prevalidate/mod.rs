@@ -66,6 +66,13 @@ impl<'grammar> Validator<'grammar> {
                             "multiple match definitions are not permitted");
                     }
 
+                    // We may want to allow a limited extern to coexist with match in the future
+                    if let Some(d) = self.extern_token {
+                        return_err!(
+                            d.span,
+                            "extern and match definitions are mutually exclusive");
+                    }
+
                     // Ensure that the catch all is final item of final block
                     for (contents_idx, match_contents) in data.contents.iter().enumerate() {
                         for (item_idx, item) in match_contents.items.iter().enumerate() {
@@ -85,6 +92,13 @@ impl<'grammar> Validator<'grammar> {
                         return_err!(
                             data.span,
                             "multiple extern definitions are not permitted");
+                    }
+
+                    // We may want to allow a limited extern to coexist with match in the future
+                    if let Some(d) = self.match_token {
+                        return_err!(
+                            d.span,
+                            "match and extern definitions are mutually exclusive");
                     }
 
                     let allowed_names = vec![intern(LOCATION), intern(ERROR)];
