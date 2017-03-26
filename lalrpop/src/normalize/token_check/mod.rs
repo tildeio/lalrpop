@@ -60,10 +60,8 @@ pub fn validate(mut grammar: Grammar) -> NormResult<Grammar> {
             match_catch_all: match_catch_all
         };
 
-        // FIXME: Handle this better if possible
-        if opt_match_token.is_some() && opt_enum_token.is_some() {
-            panic!("Can't have both a math and an extern!");
-        }
+        assert!(!opt_match_token.is_some() || !opt_enum_token.is_some(),
+                    "expected to not have both match and extern");
 
         try!(validator.validate());
 
