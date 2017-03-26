@@ -14,6 +14,12 @@ use util::Sep;
 mod test;
 
 pub fn validate(grammar: &Grammar) -> NormResult<()> {
+    let match_token: Option<&MatchToken> =
+        grammar.items
+               .iter()
+               .filter_map(|item| item.as_match_token())
+               .next();
+
     let extern_token: Option<&ExternToken> =
         grammar.items
                .iter()
@@ -22,6 +28,7 @@ pub fn validate(grammar: &Grammar) -> NormResult<()> {
 
     let validator = Validator {
         grammar: grammar,
+        match_token: match_token,
         extern_token: extern_token,
     };
 
@@ -30,6 +37,7 @@ pub fn validate(grammar: &Grammar) -> NormResult<()> {
 
 struct Validator<'grammar> {
     grammar: &'grammar Grammar,
+    match_token: Option<&'grammar MatchToken>,
     extern_token: Option<&'grammar ExternToken>,
 }
 
@@ -52,6 +60,12 @@ impl<'grammar> Validator<'grammar> {
                 GrammarItem::Use(..) => { }
 
                 GrammarItem::MatchToken(ref data) => {
+                    if data.span != self.match_token.unwrap().span {
+                        return_err!(
+                            data.span,
+                            "multiple match definitions are not permitted");
+                    }
+
                     // Ensure that the catch all is final item of final block
                     for (contents_idx, match_contents) in data.contents.iter().enumerate() {
                         for (item_idx, item) in match_contents.items.iter().enumerate() {

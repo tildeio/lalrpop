@@ -72,6 +72,14 @@ fn pub_inline_annotation() {
 }
 
 #[test]
+fn multiple_match_token() {
+    check_err(
+        r#"multiple match definitions are not permitted"#,
+        r#"grammar; match { _ } match { _ }"#,
+        r#"                     ~~~~~      "#);
+}
+
+#[test]
 fn match_catch_all_first_of_last() {
     check_err(
         r#"Catch all must be final item"#,

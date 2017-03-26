@@ -53,13 +53,15 @@ pub enum GrammarItem {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MatchToken {
-    pub contents: Vec<MatchContents>
+    pub contents: Vec<MatchContents>,
+    pub span: Span,
 }
 
 impl MatchToken {
-    pub fn new(contents: MatchContents) -> MatchToken {
+    pub fn new(contents: MatchContents, span: Span) -> MatchToken {
         MatchToken {
-            contents: vec![contents]
+            contents: vec![contents],
+            span: span
         }
     }
 
@@ -68,7 +70,8 @@ impl MatchToken {
         let mut new_contents = self.contents.clone();
         new_contents.push(contents);
         MatchToken {
-            contents: new_contents
+            contents: new_contents,
+            span: self.span
         }
     }
 }
