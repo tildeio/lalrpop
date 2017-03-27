@@ -1,0 +1,22 @@
+grammar;
+
+// NOTE: This grammar is ambiguous without the match section
+
+match {
+    "r(?i)SELECT"
+
+} else {
+    _
+}
+
+Keyword: String = {
+    "r(?i)SELECT" => String::from("SELECT")
+};
+
+Table: String = {
+    <r"(?i)[a-z]+"> => String::from(<>)
+};
+
+pub Query: String = {
+    <Keyword> <Table> => format!("{} {}", <>)
+};
