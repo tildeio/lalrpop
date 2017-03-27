@@ -252,7 +252,7 @@ impl MacroExpander {
     {
         if let Some(ref c) = *opt_cond {
             match args[&c.lhs] {
-                SymbolKind::Terminal(TerminalString::Literal(TerminalLiteral::Quoted(lhs))) => {
+                SymbolKind::Terminal(TerminalString::Literal(TerminalLiteral::Quoted(lhs, _))) => {
                     match c.op {
                         ConditionOp::Equals => Ok(lhs == c.rhs),
                         ConditionOp::NotEquals => Ok(lhs != c.rhs),

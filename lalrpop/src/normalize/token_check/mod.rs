@@ -20,29 +20,38 @@ use collections::{map, Map};
 mod test;
 
 pub fn validate(mut grammar: Grammar) -> NormResult<Grammar> {
-    let (has_enum_token, all_literals) = {
+    let (has_enum_token, all_literals, match_to_user_name_map) = {
         let opt_match_token = grammar.match_token();
 
-        let (match_mappings, match_catch_all) = if let Some(mt) = opt_match_token {
-            let mut ret = map();
+        let (match_to_user_name_map, user_name_to_match_map, match_catch_all) = if let Some(mt) = opt_match_token {
+            let mut match_to_user = map();
+            let mut user_to_match = map();
             let mut catch_all = false;
 
             // FIXME: This should probably move _inside_ the Validator
-            // FIXME: Add precedences here
-            for mc in &mt.contents {
+            for (idx, mc) in mt.contents.iter().enumerate() {
+                let precedence = &mt.contents.len() - idx;
                 for item in &mc.items {
-                    // TODO: Mabye move this into MatchItem methods
+                    // TODO: Maybe move this into MatchItem methods
                     match *item {
-                        MatchItem::Unmapped(sym, _)        => { ret.insert(sym, sym); },
-                        MatchItem::Mapped(sym, mapping, _) => { ret.insert(mapping, sym); },
-                        MatchItem::CatchAll(_)             => { catch_all = true; }
+                        MatchItem::Unmapped(sym, _) => {
+                            let precedence_sym = sym.with_match_precedence(precedence);
+                            match_to_user.insert(precedence_sym, sym);
+                            user_to_match.insert(sym, precedence_sym);
+                        },
+                        MatchItem::Mapped(sym, mapping, _) => {
+                            let precedence_sym = sym.with_match_precedence(precedence);
+                            match_to_user.insert(precedence_sym, mapping);
+                            user_to_match.insert(mapping, precedence_sym);
+                        },
+                        MatchItem::CatchAll(_) => { catch_all = true; }
                     };
                 }
             }
 
-            (Some(ret), Some(catch_all))
+            (Some(match_to_user), Some(user_to_match), Some(catch_all))
         } else {
-            (None, None)
+            (None, None, None)
         };
 
         let opt_enum_token = grammar.enum_token();
@@ -56,7 +65,7 @@ pub fn validate(mut grammar: Grammar) -> NormResult<Grammar> {
             grammar: &grammar,
             all_literals: map(),
             conversions: conversions,
-            match_mappings: match_mappings,
+            user_name_to_match_map: user_name_to_match_map,
             match_catch_all: match_catch_all
         };
 
@@ -65,11 +74,11 @@ pub fn validate(mut grammar: Grammar) -> NormResult<Grammar> {
 
         try!(validator.validate());
 
-        (opt_enum_token.is_some(), validator.all_literals)
+        (opt_enum_token.is_some(), validator.all_literals, match_to_user_name_map)
     };
 
     if !has_enum_token {
-        try!(construct(&mut grammar, all_literals));
+        try!(construct(&mut grammar, all_literals, match_to_user_name_map));
     }
 
     Ok(grammar)
@@ -85,7 +94,7 @@ struct Validator<'grammar> {
     grammar: &'grammar Grammar,
     all_literals: Map<TerminalLiteral, Span>,
     conversions: Option<Set<TerminalString>>,
-    match_mappings: Option<Map<TerminalString, TerminalString>>,
+    user_name_to_match_map: Option<Map<TerminalString, TerminalString>>,
     match_catch_all: Option<bool>,
 }
 
@@ -164,7 +173,7 @@ impl<'grammar> Validator<'grammar> {
             // the terminal literals ("class", r"[a-z]+") into a set.
             None => match term {
                 // FIMXE: Should not allow undefined literals if no CatchAll
-                TerminalString::Bare(c) => match self.match_mappings {
+                TerminalString::Bare(c) => match self.user_name_to_match_map {
                     Some(ref m) => {
                         if let Some(v) = m.get(&term) {
                             // FIXME: I don't think this span here is correct
@@ -186,14 +195,14 @@ impl<'grammar> Validator<'grammar> {
                     }
                 },
 
-                TerminalString::Literal(l) => match self.match_mappings {
+                TerminalString::Literal(l) => match self.user_name_to_match_map {
                     Some(ref m) => {
                         if let Some(v) = m.get(&term) {
                             // FIXME: I don't think this span here is correct
                             let vl = v.as_literal().expect("must map to a literal");
                             self.all_literals.entry(vl).or_insert(span);
                         } else {
-                            // Unwrap should be safe as we shouldn't have match_catch_all without match_mappings
+                            // Unwrap should be safe as we shouldn't have match_catch_all without user_name_to_match_map
                             if self.match_catch_all.unwrap() {
                                 // FIXME: I don't think this span here is correct
                                 self.all_literals.entry(l).or_insert(span);
@@ -220,7 +229,7 @@ impl<'grammar> Validator<'grammar> {
 // Construction phase -- if we are constructing a tokenizer, this
 // phase builds up an internal token DFA.
 
-pub fn construct(grammar: &mut Grammar, literals_map: Map<TerminalLiteral, Span>) -> NormResult<()> {
+pub fn construct(grammar: &mut Grammar, literals_map: Map<TerminalLiteral, Span>, match_to_user_name_map: Option<Map<TerminalString, TerminalString>>) -> NormResult<()> {
     let mut literals: Vec<TerminalLiteral> =
         literals_map.keys()
                     .cloned()
@@ -237,10 +246,10 @@ pub fn construct(grammar: &mut Grammar, literals_map: Map<TerminalLiteral, Span>
         for &literal in &literals {
             precedences.push(Precedence(literal.precedence()));
             match literal {
-                TerminalLiteral::Quoted(s) => {
+                TerminalLiteral::Quoted(s, _) => {
                     regexs.push(re::parse_literal(interner.data(s)));
                 }
-                TerminalLiteral::Regex(s) => {
+                TerminalLiteral::Regex(s, _) => {
                     match re::parse_regex(interner.data(s)) {
                         Ok(regex) => regexs.push(regex),
                         Err(error) => {
@@ -292,6 +301,7 @@ pub fn construct(grammar: &mut Grammar, literals_map: Map<TerminalLiteral, Span>
 
     grammar.items.push(GrammarItem::InternToken(InternToken {
         literals: literals,
+        match_to_user_name_map: match_to_user_name_map,
         dfa: dfa
     }));
 

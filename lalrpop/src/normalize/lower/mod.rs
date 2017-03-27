@@ -78,16 +78,24 @@ impl<'s> LowerState<'s> {
                                                     let pattern = Pattern {
                                                         span: span,
                                                         kind: PatternKind::Tuple(vec![
-                                        Pattern {
-                                            span: span,
-                                            kind: PatternKind::Usize(index),
-                                        },
-                                        Pattern {
-                                            span: span,
-                                            kind: PatternKind::Choose(input_str.clone())
-                                        }
-                                        ]),
+                                                                    Pattern {
+                                                                        span: span,
+                                                                        kind: PatternKind::Usize(index),
+                                                                    },
+                                                                    Pattern {
+                                                                        span: span,
+                                                                        kind: PatternKind::Choose(input_str.clone())
+                                                                    }
+                                                                    ]),
                                                     };
+
+                                                    // FIXME: This should be cleaner
+                                                    if let Some(ref mm) = data.match_to_user_name_map {
+                                                        if let Some(m) = mm.get(&TerminalString::Literal(literal)) {
+                                                            return (m.clone(), pattern);
+                                                        }
+                                                    }
+
                                                     (TerminalString::Literal(literal), pattern)
                                                 }));
                     self.intern_token = Some(data);

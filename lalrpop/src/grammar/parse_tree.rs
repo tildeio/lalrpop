@@ -15,6 +15,7 @@ use message::builder::InlineBuilder;
 use std::fmt::{Debug, Display, Formatter, Error};
 use tls::Tls;
 use util::Sep;
+use collections::Map;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Grammar {
@@ -118,6 +119,7 @@ pub struct InternToken {
     /// Set of `r"foo"` and `"foo"` literals extracted from the
     /// grammar. Sorted by order of increasing precedence.
     pub literals: Vec<TerminalLiteral>,
+    pub match_to_user_name_map: Option<Map<TerminalString, TerminalString>>,
     pub dfa: DFA
 }
 
@@ -324,8 +326,8 @@ impl TerminalString {
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TerminalLiteral {
-    Quoted(InternedString),
-    Regex(InternedString),
+    Quoted(InternedString, usize),
+    Regex(InternedString, usize),
 }
 
 impl TerminalLiteral {
@@ -334,8 +336,8 @@ impl TerminalLiteral {
     /// applies when we are creating the tokenizer anyhow.
     pub fn precedence(&self) -> usize {
         match *self {
-            TerminalLiteral::Quoted(_) => 1,
-            TerminalLiteral::Regex(_) => 0,
+            TerminalLiteral::Quoted(_, p) => p,
+            TerminalLiteral::Regex(_, p) => p,
         }
     }
 }
@@ -375,11 +377,22 @@ pub struct MacroSymbol {
 
 impl TerminalString {
     pub fn quoted(i: InternedString) -> TerminalString {
-        TerminalString::Literal(TerminalLiteral::Quoted(i))
+        TerminalString::Literal(TerminalLiteral::Quoted(i, 1))
     }
 
     pub fn regex(i: InternedString) -> TerminalString {
-        TerminalString::Literal(TerminalLiteral::Regex(i))
+        TerminalString::Literal(TerminalLiteral::Regex(i, 0))
+    }
+
+    pub fn with_match_precedence(self, p: usize) -> TerminalString {
+        let base_precedence = p * 2;  // Multiply times two since we still want to distinguish between quoted and regex precedence
+        match self {
+            TerminalString::Literal(TerminalLiteral::Quoted(i, _)) =>
+                TerminalString::Literal(TerminalLiteral::Quoted(i, base_precedence+1)),
+            TerminalString::Literal(TerminalLiteral::Regex(i, _)) =>
+                TerminalString::Literal(TerminalLiteral::Regex(i, base_precedence+0)),
+            _ => panic!("cannot set match precedence for {:?}", self)
+        }
     }
 }
 
@@ -507,9 +520,9 @@ impl Debug for TerminalString {
 impl Display for TerminalLiteral {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match *self {
-            TerminalLiteral::Quoted(s) =>
+            TerminalLiteral::Quoted(s, _) =>
                 write!(fmt, "{:?}", s), // the Debug impl adds the `"` and escaping
-            TerminalLiteral::Regex(s) =>
+            TerminalLiteral::Regex(s, _) =>
                 write!(fmt, "r#{:?}#", s), // FIXME -- need to determine proper number of #
         }
     }
@@ -517,7 +530,10 @@ impl Display for TerminalLiteral {
 
 impl Debug for TerminalLiteral {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        Display::fmt(self, fmt)
+        match *self {
+            TerminalLiteral::Quoted(_, p) | TerminalLiteral::Regex(_, p) =>
+                write!(fmt, "{}+{}", self, p)
+        }
     }
 }
 
