@@ -4,7 +4,6 @@ grammar;
 
 match {
     "r(?i)SELECT"
-
 } else {
     _
 }
