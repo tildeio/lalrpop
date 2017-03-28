@@ -3,13 +3,13 @@ grammar;
 // NOTE: This grammar is ambiguous without the match section
 
 match {
-    "r(?i)SELECT"
+    r"(?i)select"
 } else {
     _
 }
 
 Keyword: String = {
-    "r(?i)SELECT" => String::from("SELECT")
+    r"(?i)select" => String::from("SELECT")
 };
 
 Table: String = {
